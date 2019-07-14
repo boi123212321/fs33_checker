@@ -1,13 +1,14 @@
 # Install
-Install Google Chrome
-Install Node.js (https://nodejs.org/en/)
-In directory, run
+- Install Google Chrome
+- Install Node.js (https://nodejs.org/en/)
+- In directory, run
 ```
 npm install
 ```
+- Set your chrome path in the code. If you run Ubuntu, it should be fine as it is.
 
 # Run
-In directory, run
+- In directory, run
 ```
 node . [your-api-key]
 ```
