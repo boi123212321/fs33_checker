@@ -12,3 +12,4 @@ npm install
 ```
 node . [your-api-key]
 ```
+Never share your API key with someone else!
