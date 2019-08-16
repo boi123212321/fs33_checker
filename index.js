@@ -114,7 +114,12 @@ async function getGoVideos() {
     console.log(`Skipping ${SKIP} videos...`);
   }
 
-	let sources = [];
+  let sources = [];
+  
+  if (fs.existsSync("cdn.json")) {
+    sources.push(...JSON.parse(fs.readFileSync("cdn.json")));
+    console.log(`Read ${sources.length} from file.`);
+  }
 
 	for (let i = SKIP; i < videos.length; i++) {
 		const video = videos[i];
@@ -132,7 +137,11 @@ async function getGoVideos() {
 					cdnLink: url,
 					id: video.file_code
 				});
-				gotLink = true;
+        gotLink = true;
+        
+        fs.writeFileSync("cdn.json", JSON.stringify(sources));
+        let broken = sources.filter(i => i.cdnLink.includes("fs33"));
+        fs.writeFileSync("broken.json", JSON.stringify(broken));
 			}
 			catch (err) {
 				console.error(err);
@@ -140,11 +149,8 @@ async function getGoVideos() {
 		}
 	}
 
-	console.log(`Writing all ${sources.length} CDN links to file (cdn.json)...`);
-	fs.writeFileSync("cdn.json", JSON.stringify(sources));
-
-	let broken = sources.filter(i => i.cdnLink.includes("fs33"));
-	console.log(`Writing all ${broken.length} broken files to file (broken.json)...`);
-	fs.writeFileSync("broken.json", JSON.stringify(broken));
+  console.log(`Done. Wrote all ${sources.length} CDN links to file (cdn.json)...`);
+  console.log(`Wrote all ${broken.length} broken files to file (broken.json)...`);
+	
 	process.exit(0);
 })();
