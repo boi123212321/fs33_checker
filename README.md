@@ -10,6 +10,7 @@ npm install
 # Run
 - In directory, run
 ```
-node . [your-api-key]
+node . [your-api-key] [skip?]
 ```
 Never share your API key with someone else!
+Skip skips X videos and continues fetching the remaining.
