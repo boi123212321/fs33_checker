@@ -26,7 +26,7 @@ const ENDPOINT = "https://gounlimited.to/api/file/list";
 let SKIP = 0;
 
 if (process.argv.length < 3) {
-	console.log("PLEASE PROVIDE API KEY: node . your_api_key");
+	console.log("PLEASE PROVIDE API KEY: node . your_api_key skip?");
 	process.exit(0);
 }
 
