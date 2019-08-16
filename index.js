@@ -23,9 +23,15 @@ const CHROME_PATH = "/usr/bin/google-chrome"
 
 const ENDPOINT = "https://gounlimited.to/api/file/list";
 
+let SKIP = 0;
+
 if (process.argv.length < 3) {
 	console.log("PLEASE PROVIDE API KEY: node . your_api_key");
 	process.exit(0);
+}
+
+if (process.argv.length >= 4) {
+  SKIP = parseInt(process.argv[3]);
 }
 
 const API_KEY = process.argv[2];
@@ -102,11 +108,15 @@ async function getGoVideos() {
 		})
 	}
 
-	let videos = await getGoVideos();
+  let videos = await getGoVideos();
+  
+  if (SKIP > 0) {
+    console.log(`Skipping ${SKIP} videos...`);
+  }
 
 	let sources = [];
 
-	for (let i = 0; i < videos.length; i++) {
+	for (let i = SKIP; i < videos.length; i++) {
 		const video = videos[i];
 
 		console.log(`(${i + 1}/${videos.length}) Testing ${video.title}...`);
