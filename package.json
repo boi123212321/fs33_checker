@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^0.19.0",
+    "download-file-with-progressbar": "^1.2.3",
     "puppeteer": "^1.18.1"
   }
 }
