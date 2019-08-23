@@ -86,7 +86,7 @@ async function getGoVideos() {
 			try {
 				const page = await browser.newPage();
 
-				await page.goto(url);
+				await page.goto(url, { waitUntil: "domcontentloaded" });
 
 				let source = null;
 
