@@ -82,7 +82,7 @@ function embedLink(video) {
       try {
         const page = await browser.newPage();
 
-        await page.goto(embedLink(video));
+        await page.goto(embedLink(video), { waitUntil: "domcontentloaded" });
 
         let source = null;
 
