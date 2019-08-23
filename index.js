@@ -26,8 +26,8 @@ const ENDPOINT = "https://gounlimited.to/api/file/list";
 let SKIP = 0;
 
 if (process.argv.length < 3) {
-	console.log("PLEASE PROVIDE API KEY: node . your_api_key skip?");
-	process.exit(0);
+  console.log("PLEASE PROVIDE API KEY: node . your_api_key skip?");
+  process.exit(0);
 }
 
 if (process.argv.length >= 4) {
@@ -37,120 +37,132 @@ if (process.argv.length >= 4) {
 const API_KEY = process.argv[2];
 
 async function getGoVideos() {
-	return new Promise(async (resolve, reject) => {
-		try {
-			const links = [];
+  return new Promise(async (resolve, reject) => {
+    try {
+      const links = [];
 
-			let page = 1;
+      let page = 1;
 
-			let res = await axios.get(ENDPOINT, {
-				params: {
-					key: API_KEY,
-					per_page: 1000,
-					page: page++
-				}
-			});
+      let res = await axios.get(ENDPOINT, {
+        params: {
+          key: API_KEY,
+          per_page: 1000,
+          page: page++
+        }
+      });
 
-			links.push(...res.data.result.files);
+      links.push(...res.data.result.files);
 
-			while (links.length < parseInt(res.data.result.results_total)) {
-				res = await axios.get(ENDPOINT, {
-					params: {
-						key: API_KEY,
-						per_page: 1000,
-						page: page++
-					}
-				});
+      while (links.length < parseInt(res.data.result.results_total)) {
+        res = await axios.get(ENDPOINT, {
+          params: {
+            key: API_KEY,
+            per_page: 1000,
+            page: page++
+          }
+        });
 
-				links.push(...res.data.result.files);
-			}
+        links.push(...res.data.result.files);
+      }
 
-			resolve(links);
-		}
-		catch (err) {
-			reject(err)
-		}
-	})
+      resolve(links);
+    }
+    catch (err) {
+      reject(err)
+    }
+  })
 }
 
 (async () => {
-	console.log("Starting chrome...");
+  console.log("Starting chrome...");
 
-	let browser = await puppeteer.launch({
-		headless: HEADLESS,
-		executablePath: CHROME_PATH
-	});
+  let browser = await puppeteer.launch({
+    headless: HEADLESS,
+    executablePath: CHROME_PATH
+  });
 
-	function test(url) {
-		return new Promise(async (resolve, reject) => {
-			try {
-				const page = await browser.newPage();
+  function test(url) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const page = await browser.newPage();
 
-				await page.goto(url, { waitUntil: "domcontentloaded" });
+        await page.goto(url, { waitUntil: "domcontentloaded" });
 
-				let source = null;
+        let source = null;
 
-				source = await page.evaluate(() => {
-					let videos = document.getElementsByTagName("video");
-					videos = Array.from(videos);
-					return videos[0].src;
-				})
+        source = await page.evaluate(() => {
+          let videos = document.getElementsByTagName("video");
+          videos = Array.from(videos);
+          let head = videos[0];
 
-				console.log(source);
+          if (head)
+            return head.src;
+          return null;
+        })
 
-				await page.close();
+        if (source == null) {
+          console.log(`Could not get source link for ${url} (no video player?/corrupt file?)...`);
+        }
+        else
+          console.log(source);
 
-				resolve(source);
-			}
-			catch (err) {
-				reject(err);
-			}
-		})
-	}
+        await page.close();
+
+        resolve(source);
+      }
+      catch (err) {
+        reject(err);
+      }
+    })
+  }
 
   let videos = await getGoVideos();
-  
+
   if (SKIP > 0) {
     console.log(`Skipping ${SKIP} videos...`);
   }
 
   let sources = [];
-  
+
   if (fs.existsSync("cdn.json")) {
     sources.push(...JSON.parse(fs.readFileSync("cdn.json")));
     console.log(`Read ${sources.length} from file.`);
   }
 
-	for (let i = SKIP; i < videos.length; i++) {
-		const video = videos[i];
+  for (let i = SKIP; i < videos.length; i++) {
+    const video = videos[i];
 
-		console.log(`(${i + 1}/${videos.length}) Testing ${video.title}...`);
+    console.log(`(${i + 1}/${videos.length}) Testing ${video.title}...`);
 
-		let gotLink = false;
+    let gotLink = false;
 
-		while (!gotLink) {
-			try {
-				const url = await test(video.link);
-				sources.push({
-					title: video.title,
-					link: video.link,
-					cdnLink: url,
-					id: video.file_code
-				});
+    while (!gotLink) {
+      try {
+        const url = await test(video.link);
+
+        if (url) {
+          sources.push({
+            title: video.title,
+            link: video.link,
+            cdnLink: url,
+            id: video.file_code
+          });
+
+          fs.writeFileSync("cdn.json", JSON.stringify(sources));
+          let broken = sources.filter(i => i.cdnLink.includes("fs33"));
+          fs.writeFileSync("broken.json", JSON.stringify(broken));
+        }
+
         gotLink = true;
-        
-        fs.writeFileSync("cdn.json", JSON.stringify(sources));
-        let broken = sources.filter(i => i.cdnLink.includes("fs33"));
-        fs.writeFileSync("broken.json", JSON.stringify(broken));
-			}
-			catch (err) {
-				console.error(err);
-			}
-		}
-	}
+      }
+      catch (err) {
+        console.error(err);
+      }
+    }
+  }
 
   console.log(`Done. Wrote all ${sources.length} CDN links to file (cdn.json)...`);
   console.log(`Wrote all ${broken.length} broken files to file (broken.json)...`);
-	
-	process.exit(0);
+
+  process.exit(0);
 })();
