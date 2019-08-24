@@ -15,12 +15,13 @@
 const fs = require("fs");
 const puppeteer = require("puppeteer");
 const axios = require("axios");
+const PromisePool = require("async-promise-pool");
 
 const HEADLESS = true;
 
 // Set your chrome executable path here v
 const CHROME_PATH = "/usr/bin/google-chrome"
-
+const CONCURRENCY = 1;
 const ENDPOINT = "https://gounlimited.to/api/file/list";
 
 let SKIP = 0;
@@ -81,7 +82,7 @@ async function getGoVideos() {
     executablePath: CHROME_PATH
   });
 
-  function test(url) {
+  function test(url, title) {
     return new Promise(async (resolve, reject) => {
       try {
         const page = await browser.newPage();
@@ -104,7 +105,7 @@ async function getGoVideos() {
           console.log(`Could not get source link for ${url} (no video player?/corrupt file?)...`);
         }
         else
-          console.log(source);
+          console.log(`${title}: ${source}`);
 
         await page.close();
 
@@ -122,6 +123,8 @@ async function getGoVideos() {
     console.log(`Skipping ${SKIP} videos...`);
   }
 
+  console.log(`Concurrency: ${CONCURRENCY}`);
+
   let sources = [];
 
   if (fs.existsSync("cdn.json")) {
@@ -129,37 +132,46 @@ async function getGoVideos() {
     console.log(`Read ${sources.length} from file.`);
   }
 
+  const pool = new PromisePool({ concurrency: CONCURRENCY });
+
   for (let i = SKIP; i < videos.length; i++) {
-    const video = videos[i];
+    pool.add(() => {
+      return new Promise(async (resolve, reject) => {
+        const video = videos[i];
 
-    console.log(`(${i + 1}/${videos.length}) Testing ${video.title}...`);
+        console.log(`(${i + 1}/${videos.length}) Testing ${video.title}...`);
 
-    let gotLink = false;
+        let gotLink = false;
 
-    while (!gotLink) {
-      try {
-        const url = await test(video.link);
+        while (!gotLink) {
+          try {
+            const url = await test(video.link, video.title);
 
-        if (url) {
-          sources.push({
-            title: video.title,
-            link: video.link,
-            cdnLink: url,
-            id: video.file_code
-          });
+            if (url) {
+              sources.push({
+                title: video.title,
+                link: video.link,
+                cdnLink: url,
+                id: video.file_code
+              });
 
-          fs.writeFileSync("cdn.json", JSON.stringify(sources));
-          let broken = sources.filter(i => i.cdnLink.includes("fs33"));
-          fs.writeFileSync("broken.json", JSON.stringify(broken));
+              fs.writeFileSync("cdn.json", JSON.stringify(sources));
+              let broken = sources.filter(i => i.cdnLink.includes("fs33"));
+              fs.writeFileSync("broken.json", JSON.stringify(broken));
+            }
+
+            gotLink = true;
+            resolve();
+          }
+          catch (err) {
+            console.error(err);
+          }
         }
-
-        gotLink = true;
-      }
-      catch (err) {
-        console.error(err);
-      }
-    }
+      });
+    });
   }
+
+  await pool.all();
 
   console.log(`Done. Wrote all ${sources.length} CDN links to file (cdn.json)...`);
   console.log(`Wrote all ${broken.length} broken files to file (broken.json)...`);
